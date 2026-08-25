@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hazardous Detection</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+
+    <div class="container">
+
+        <!-- HEADER -->
+        <header class="main-header">
+            <div class="header-container">
+                <div class="brand">
+                    <div class="logo-wrapper">
+                        <img src="{{ url_for('static', filename='logo.jpeg') }}" alt="Hazardous Detection Logo" class="app-logo">
+                    </div>
+                    <div class="brand-text">
+                        <h1>Hazardous Detection</h1>
+                        <p>YOLO-Based Object Detection System</p>
+                    </div>
+                </div>
+
+                <div id="apiStatusPill" class="api-pill offline" role="status" aria-live="polite">
+                    <span class="pill-dot"></span>
+                    <span id="apiStatusText" class="pill-text">API Offline</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- SYSTEM STATUS CARD -->
+        <section class="card status-card">
+            <div class="section-heading">
+                <div>
+                    <h2>System Status</h2>
+                    <p>Monitor the detection system connection and adjust sensitivity.</p>
+                </div>
+            </div>
+
+            <div class="status-grid">
+                <div class="status-box">
+                    <span class="status-label">API Status</span>
+                    <div class="status-value">
+                        <span id="statusIndicator" class="status-indicator error"></span>
+                        <strong id="systemStatus" class="status-error">Connecting...</strong>
+                    </div>
+                </div>
+
+                <div class="status-box">
+                    <span class="status-label">Model</span>
+                    <div class="status-value">
+                        <strong id="modelStatus" class="status-running">YOLO v9</strong>
+                    </div>
+                </div>
+
+                <!-- INTERACTIVE CONFIDENCE THRESHOLD SLIDER -->
+                <div class="status-box">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span class="status-label">Confidence Threshold</span>
+                        <strong id="confidenceValue" style="color: var(--primary);">35%</strong>
+                    </div>
+                    <div class="status-value" style="margin-top: 5px;">
+                        <input 
+                            type="range" 
+                            id="confidenceSlider" 
+                            min="10" 
+                            max="95" 
+                            value="35" 
+                            step="5"
+                            style="width: 100%; cursor: pointer; accent-color: var(--primary);"
+                        >
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- UPLOAD IMAGE SECTION -->
+        <section class="card">
+            <div class="section-heading">
+                <div>
+                    <h2>Upload Image</h2>
+                    <p>Select an image to detect hazardous objects.</p>
+                </div>
+            </div>
+
+            <div class="upload-area">
+                <input type="file" id="imageInput" accept="image/*">
+                <button id="detectButton" type="button">Detect Objects</button>
+            </div>
+        </section>
+
+        <!-- LIVE WEBCAM DETECTION -->
+        <section class="card">
+            <div class="section-heading">
+                <div>
+                    <h2>Live Webcam Detection</h2>
+                    <p>Start the webcam for automatic real-time hazardous object detection.</p>
+                </div>
+            </div>
+
+            <div class="webcam-container">
+                <video id="webcam" autoplay playsinline muted></video>
+                <canvas id="detectionCanvas"></canvas>
+
+                <div id="webcamMessage" class="webcam-message">
+                    <span class="camera-icon">◉</span>
+                    <span>Click "Start Webcam" to begin live detection.</span>
+                </div>
+            </div>
+
+            <div class="webcam-buttons">
+                <button id="startWebcamButton" type="button">Start Webcam</button>
+                <button id="stopWebcamButton" type="button" disabled>Stop Webcam</button>
+            </div>
+
+            <div id="liveDetectionStatus" class="live-status" aria-live="polite">
+                Webcam stopped.
+            </div>
+        </section>
+
+        <!-- SIDE-BY-SIDE PREVIEW & DETECTION RESULTS -->
+        <div class="comparison-grid">
+            <!-- LEFT: IMAGE PREVIEW -->
+            <section class="card">
+                <div class="section-heading">
+                    <div>
+                        <h2>Image Preview</h2>
+                        <p>Preview the selected or live auto-captured image.</p>
+                    </div>
+                </div>
+
+                <div class="image-container">
+                    <img id="previewImage" src="" alt="Selected Image Preview">
+                    <p id="previewMessage">Upload an image or start live detection to preview.</p>
+                </div>
+            </section>
+
+            <!-- RIGHT: DETECTION RESULT -->
+            <section class="card">
+                <div class="section-heading">
+                    <div>
+                        <h2>Detection Result</h2>
+                        <p>YOLO detection result.</p>
+                    </div>
+                </div>
+
+                <div class="image-container">
+                    <img id="resultImage" src="" alt="YOLO Detection Result">
+                    <p id="resultMessage">Detection result will appear here.</p>
+                </div>
+            </section>
+        </div>
+
+        <!-- DETECTION DETAILS -->
+        <section class="card">
+            <div class="section-heading">
+                <div>
+                    <h2>Detection Details</h2>
+                    <p>Information about detected hazardous objects.</p>
+                </div>
+            </div>
+
+            <div id="detectionSummary" class="detection-summary">
+                No detection performed yet.
+            </div>
+
+            <div id="detections" class="detections-list"></div>
+        </section>
+
+        <!-- FOOTER -->
+        <footer class="app-footer">
+            <p>YOLO-Based Hazardous Object Detection System</p>
+        </footer>
+
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+
+</body>
+
+</html>

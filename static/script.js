@@ -1,0 +1,364 @@
+// =========================================================
+// DASHBOARD DOM ELEMENTS & STATE
+// =========================================================
+
+const $ = id => document.getElementById(id);
+
+const imageInput = $("imageInput");
+const detectButton = $("detectButton");
+const previewImage = $("previewImage");
+const previewMessage = $("previewMessage");
+const resultImage = $("resultImage");
+const resultMessage = $("resultMessage");
+const detectionSummary = $("detectionSummary");
+const detectionsBox = $("detections");
+
+const webcam = $("webcam");
+const canvas = $("detectionCanvas");
+const ctx = canvas ? canvas.getContext("2d") : null;
+const startWebcamButton = $("startWebcamButton");
+const stopWebcamButton = $("stopWebcamButton");
+const webcamMessage = $("webcamMessage");
+const liveStatus = $("liveDetectionStatus");
+
+const confidenceSlider = $("confidenceSlider");
+const confidenceValue = $("confidenceValue");
+
+let stream = null;
+let timer = null;
+let detecting = false;
+let detectionHistory = [];
+const INTERVAL = 500;
+
+
+// =========================================================
+// THRESHOLD SLIDER CONTROLLER
+// =========================================================
+
+if (confidenceSlider && confidenceValue) {
+    confidenceSlider.addEventListener("input", (e) => {
+        confidenceValue.textContent = `${e.target.value}%`;
+    });
+}
+
+function getConfidenceThreshold() {
+    return confidenceSlider ? (parseFloat(confidenceSlider.value) / 100) : 0.35;
+}
+
+
+// =========================================================
+// UNIFIED HEALTH & SYSTEM STATUS CHECK
+// =========================================================
+
+async function checkSystemHealth() {
+    const pill = $("apiStatusPill");
+    const pillText = $("apiStatusText");
+    const systemStatus = $("systemStatus");
+    const statusDot = $("statusIndicator");
+
+    try {
+        const response = await fetch("/health", { method: "GET" });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        
+        const data = await response.json();
+        const isRunning = data.status === "running" || data.status === "ok" || response.ok;
+
+        if (isRunning) {
+            if (pill && pillText) {
+                pill.className = "api-pill online";
+                pillText.textContent = "API Online";
+            }
+            if (systemStatus) {
+                systemStatus.className = "status-running";
+                systemStatus.textContent = "System Running — Model Loaded";
+            }
+            if (statusDot) {
+                statusDot.className = "status-indicator running";
+            }
+        } else {
+            throw new Error(data.message || data.error || "Model Loading Error");
+        }
+    } catch (err) {
+        if (pill && pillText) {
+            pill.className = "api-pill offline";
+            pillText.textContent = "API Offline";
+        }
+        if (systemStatus) {
+            systemStatus.className = "status-error";
+            systemStatus.textContent = err.name === "TypeError" 
+                ? "API Offline — Connection Failed" 
+                : `System Error — ${err.message}`;
+        }
+        if (statusDot) {
+            statusDot.className = "status-indicator error";
+        }
+    }
+}
+
+
+// =========================================================
+// DETECTION DETAILS DISPLAY
+// =========================================================
+
+function showDetails() {
+    if (!detectionSummary || !detectionsBox) return;
+
+    detectionSummary.textContent = `Objects Detected: ${detectionHistory.length}`;
+
+    if (!detectionHistory.length) {
+        detectionsBox.innerHTML = '<div class="detection-item">No objects detected.</div>';
+        return;
+    }
+
+    detectionsBox.innerHTML = detectionHistory.map((d, i) => `
+        <div class="detection-item">
+            <strong>Detection ${i + 1}</strong><br>
+            Class: ${d.class_name || d.label || 'Hazard'}<br>
+            Confidence: ${(d.confidence * 100).toFixed(2)}%
+        </div>
+    `).join("");
+}
+
+function clearDetails() {
+    detectionHistory = [];
+    showDetails();
+}
+
+
+// =========================================================
+// IMAGE PREVIEW & FILE UPLOAD DETECTION
+// =========================================================
+
+if (imageInput) {
+    imageInput.addEventListener("change", () => {
+        const file = imageInput.files[0];
+        if (!file) return;
+
+        clearDetails();
+        const objectUrl = URL.createObjectURL(file);
+        
+        previewImage.src = objectUrl;
+        previewImage.style.display = "block";
+        previewMessage.style.display = "none";
+
+        resultImage.src = "";
+        resultImage.style.display = "none";
+        resultMessage.style.display = "block";
+        resultMessage.textContent = "Click Detect Objects to analyze the image.";
+    });
+}
+
+if (detectButton) {
+    detectButton.addEventListener("click", async () => {
+        const file = imageInput?.files[0];
+        if (!file) return alert("Please select an image first.");
+
+        clearDetails();
+        detectButton.disabled = true;
+        detectButton.textContent = "Detecting...";
+
+        try {
+            const form = new FormData();
+            form.append("image", file);
+            form.append("threshold", getConfidenceThreshold()); // Sending dynamic threshold
+
+            const res = await fetch("/predict", { method: "POST", body: form });
+            const data = await res.json();
+
+            if (data.error) throw new Error(data.error);
+
+            detectionHistory = data.detections || [];
+            showDetails();
+
+            // Scenario A: Backend returned annotated base64 image
+            if (data.annotated_image) {
+                resultImage.src = `data:image/jpeg;base64,${data.annotated_image}`;
+                resultImage.style.display = "block";
+                resultMessage.style.display = "none";
+            } 
+            // Scenario B: Client-side canvas bounding box fallback
+            else if (detectionHistory.length > 0) {
+                const img = new Image();
+                img.src = previewImage.src;
+                await img.decode();
+
+                const offCanvas = document.createElement("canvas");
+                offCanvas.width = img.naturalWidth;
+                offCanvas.height = img.naturalHeight;
+                const offCtx = offCanvas.getContext("2d");
+
+                offCtx.drawImage(img, 0, 0);
+
+                detectionHistory.forEach(d => {
+                    const b = d.bbox;
+                    if (!b) return;
+                    const label = `${d.class_name || d.label} ${(d.confidence * 100).toFixed(1)}%`;
+
+                    offCtx.strokeStyle = "#4ade80";
+                    offCtx.lineWidth = Math.max(3, Math.round(img.naturalWidth / 250));
+                    offCtx.strokeRect(b.x1, b.y1, b.x2 - b.x1, b.y2 - b.y1);
+
+                    offCtx.fillStyle = "#4ade80";
+                    offCtx.font = `bold ${Math.max(16, Math.round(img.naturalWidth / 35))}px Inter, sans-serif`;
+                    offCtx.fillText(label, b.x1, Math.max(20, b.y1 - 7));
+                });
+
+                resultImage.src = offCanvas.toDataURL("image/jpeg");
+                resultImage.style.display = "block";
+                resultMessage.style.display = "none";
+            } else {
+                resultImage.src = previewImage.src;
+                resultImage.style.display = "block";
+                resultMessage.style.display = "none";
+            }
+
+        } catch (e) {
+            resultMessage.textContent = `Detection failed: ${e.message}`;
+            resultMessage.style.display = "block";
+        } finally {
+            detectButton.disabled = false;
+            detectButton.textContent = "Detect Objects";
+        }
+    });
+}
+
+
+// =========================================================
+// WEBCAM LIVE STREAM & AUTOMATIC CAPTURE DETECTION
+// =========================================================
+
+if (startWebcamButton) {
+    startWebcamButton.addEventListener("click", async () => {
+        try {
+            clearDetails();
+            stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+
+            webcam.srcObject = stream;
+            await webcam.play();
+
+            canvas.width = webcam.videoWidth;
+            canvas.height = webcam.videoHeight;
+
+            webcam.style.display = "block";
+            canvas.style.display = "block";
+            webcamMessage.style.display = "none";
+
+            startWebcamButton.disabled = true;
+            stopWebcamButton.disabled = false;
+            if (liveStatus) liveStatus.textContent = "● Live Detection Running";
+
+            timer = setInterval(detectWebcam, INTERVAL);
+
+        } catch (err) {
+            alert("Please allow camera permission.");
+        }
+    });
+}
+
+async function detectWebcam() {
+    if (!stream || detecting) return;
+    detecting = true;
+
+    try {
+        const tempCanvas = document.createElement("canvas");
+        tempCanvas.width = webcam.videoWidth;
+        tempCanvas.height = webcam.videoHeight;
+        const tempCtx = tempCanvas.getContext("2d");
+        tempCtx.drawImage(webcam, 0, 0);
+
+        const frameDataUrl = tempCanvas.toDataURL("image/jpeg");
+        const blob = await new Promise(res => tempCanvas.toBlob(res, "image/jpeg", 0.7));
+        
+        const form = new FormData();
+        form.append("image", blob, "webcam.jpg");
+        form.append("threshold", getConfidenceThreshold()); // Sending dynamic threshold
+
+        const res = await fetch("/predict", { method: "POST", body: form });
+        const data = await res.json();
+
+        const detections = data.detections || [];
+
+        if (detections.length > 0) {
+            // Sort detections by best confidence score first
+            detections.sort((a, b) => b.confidence - a.confidence);
+
+            drawBoxes(detections);
+            detectionHistory = detections;
+            showDetails();
+
+            // Auto-capture frame previews
+            previewImage.src = frameDataUrl;
+            previewImage.style.display = "block";
+            previewMessage.style.display = "none";
+
+            if (data.annotated_image) {
+                resultImage.src = `data:image/jpeg;base64,${data.annotated_image}`;
+            } else {
+                resultImage.src = frameDataUrl;
+            }
+            resultImage.style.display = "block";
+            resultMessage.style.display = "none";
+        } else {
+            if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+    } catch (e) {
+        console.error("Webcam processing error:", e);
+    } finally {
+        detecting = false;
+    }
+}
+
+function drawBoxes(detections) {
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    detections.forEach(d => {
+        const b = d.bbox;
+        if (!b) return;
+        const label = `${d.class_name || d.label} ${(d.confidence * 100).toFixed(1)}%`;
+
+        ctx.strokeStyle = "#4ade80";
+        ctx.lineWidth = 3;
+        ctx.strokeRect(b.x1, b.y1, b.x2 - b.x1, b.y2 - b.y1);
+
+        ctx.fillStyle = "#4ade80";
+        ctx.font = "bold 15px Inter, sans-serif";
+        ctx.fillText(label, b.x1, Math.max(18, b.y1 - 7));
+    });
+}
+
+if (stopWebcamButton) {
+    stopWebcamButton.addEventListener("click", () => {
+        clearInterval(timer);
+        timer = null;
+
+        if (stream) stream.getTracks().forEach(t => t.stop());
+        stream = null;
+        webcam.srcObject = null;
+
+        if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        webcam.style.display = "none";
+        canvas.style.display = "none";
+        webcamMessage.style.display = "block";
+
+        startWebcamButton.disabled = false;
+        stopWebcamButton.disabled = true;
+
+        if (liveStatus) liveStatus.textContent = "Webcam stopped.";
+    });
+}
+
+
+// =========================================================
+// INITIALIZATION
+// =========================================================
+
+document.addEventListener("DOMContentLoaded", () => {
+    checkSystemHealth();
+    setInterval(checkSystemHealth, 10000);
+});
+
+window.addEventListener("beforeunload", () => {
+    stream?.getTracks().forEach(t => t.stop());
+});
