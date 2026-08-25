@@ -51,7 +51,7 @@ def predict():
         # Fast inference with YOLOv8n
         result = model.predict(
             image,
-            imgsz=256,
+            imgsz=416,
             conf=req_confidence,
             device="cpu",
             verbose=False,
