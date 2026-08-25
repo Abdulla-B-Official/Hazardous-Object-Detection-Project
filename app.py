@@ -1,27 +1,20 @@
 import base64
 import gc
-import io
 import os
 import cv2
 from flask import Flask, jsonify, render_template, request
 from flask_cors import CORS
 import numpy as np
-from PIL import Image
-import torch
 from ultralytics import YOLO
-
-# --- MEMORY & CPU OPTIMIZATIONS FOR RENDER ---
-# Allow PyTorch to use available CPU threads dynamically
-torch.set_grad_enabled(False)  # Disable autograd calculations (inference only)
 
 app = Flask(__name__)
 CORS(app)
 
-# Explicitly point to the best.pt in root directory
-MODEL_PATH = "best.pt" if os.path.exists("best.pt") else "runs/hazardous_detection/weights/best.pt"
-model = YOLO(MODEL_PATH)
+# Point to ONNX file for optimized CPU speed
+MODEL_PATH = "best.onnx" if os.path.exists("best.onnx") else "runs/hazardous_detection/weights/best.onnx"
+model = YOLO(MODEL_PATH, task="detect")
 
-DEFAULT_CONFIDENCE = 0.35
+DEFAULT_CONFIDENCE = 0.20
 
 
 @app.route("/health")
@@ -42,20 +35,20 @@ def predict():
     try:
         req_confidence = float(request.form.get("threshold", DEFAULT_CONFIDENCE))
 
-        # Read image
-        image_bytes = request.files["image"].read()
-        image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
-        image = np.array(image)
-        image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+        # Decode byte stream directly into OpenCV BGR matrix (bypasses PIL overhead completely)
+        file_bytes = np.frombuffer(request.files["image"].read(), np.uint8)
+        image = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
 
-        # Fast inference with YOLOv8n
+        if image is None:
+            return jsonify({"error": "Invalid or corrupted image file"}), 400
+
+        # Run ONNX model prediction at 320px for high-speed CPU performance
         result = model.predict(
             image,
-            imgsz=416,
+            imgsz=320,
             conf=req_confidence,
-            device="cpu",
             verbose=False,
-            max_det=20,
+            max_det=10,
         )[0]
 
         detections = []
@@ -74,7 +67,7 @@ def predict():
                 "bbox": {"x1": x1, "y1": y1, "x2": x2, "y2": y2},
             })
 
-        # Draw detections on output copy
+        # Draw annotations directly onto BGR frame
         output = image.copy()
         for d in detections:
             x1, y1, x2, y2 = (
@@ -96,16 +89,12 @@ def predict():
                 2,
             )
 
-        # Convert annotated image back to Base64
-        output = cv2.cvtColor(output, cv2.COLOR_BGR2RGB)
-        output = Image.fromarray(output)
+        # Fast direct JPEG encoding in memory (Quality set to 50 for max network transfer speed)
+        _, buffer = cv2.imencode(".jpg", output, [int(cv2.IMWRITE_JPEG_QUALITY), 50])
+        encoded = base64.b64encode(buffer).decode("utf-8")
 
-        buffer = io.BytesIO()
-        output.save(buffer, format="JPEG", quality=60)
-        encoded = base64.b64encode(buffer.getvalue()).decode("utf-8")
-
-        # Cleanup RAM
-        del image, output, buffer, image_bytes
+        # Free memory instantly
+        del image, output, buffer, file_bytes
         gc.collect()
 
         return jsonify({
