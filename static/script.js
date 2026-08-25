@@ -28,7 +28,9 @@ let stream = null;
 let timer = null;
 let detecting = false;
 let detectionHistory = [];
-const INTERVAL = 500;
+
+// Throttled to 800ms interval to give free cloud CPU time to respond without queue lag
+const INTERVAL = 800;
 
 
 // =========================================================
@@ -42,7 +44,7 @@ if (confidenceSlider && confidenceValue) {
 }
 
 function getConfidenceThreshold() {
-    return confidenceSlider ? (parseFloat(confidenceSlider.value) / 100) : 0.35;
+    return confidenceSlider ? (parseFloat(confidenceSlider.value) / 100) : 0.20;
 }
 
 
@@ -58,10 +60,16 @@ async function checkSystemHealth() {
 
     try {
         const response = await fetch("/health", { method: "GET" });
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const rawText = await response.text();
         
-        const data = await response.json();
-        const isRunning = data.status === "running" || data.status === "ok" || response.ok;
+        let data = {};
+        try {
+            data = JSON.parse(rawText);
+        } catch (e) {
+            throw new Error(`Server returned status ${response.status}`);
+        }
+
+        const isRunning = response.ok && (data.status === "running" || data.status === "ok");
 
         if (isRunning) {
             if (pill && pillText) {
@@ -76,7 +84,7 @@ async function checkSystemHealth() {
                 statusDot.className = "status-indicator running";
             }
         } else {
-            throw new Error(data.message || data.error || "Model Loading Error");
+            throw new Error(data.message || data.error || `HTTP ${response.status}`);
         }
     } catch (err) {
         if (pill && pillText) {
@@ -87,7 +95,7 @@ async function checkSystemHealth() {
             systemStatus.className = "status-error";
             systemStatus.textContent = err.name === "TypeError" 
                 ? "API Offline — Connection Failed" 
-                : `System Error — ${err.message}`;
+                : `System Warning — ${err.message}`;
         }
         if (statusDot) {
             statusDot.className = "status-indicator error";
@@ -160,12 +168,23 @@ if (detectButton) {
         try {
             const form = new FormData();
             form.append("image", file);
-            form.append("threshold", getConfidenceThreshold()); // Sending dynamic threshold
+            form.append("threshold", getConfidenceThreshold());
 
             const res = await fetch("/predict", { method: "POST", body: form });
-            const data = await res.json();
+            
+            // Read as text first to avoid JSON.parse syntax crash on HTTP error pages
+            const rawText = await res.text();
+            let data;
 
-            if (data.error) throw new Error(data.error);
+            try {
+                data = JSON.parse(rawText);
+            } catch (jsonErr) {
+                throw new Error(`Server Error (${res.status}): Server sent non-JSON response.`);
+            }
+
+            if (!res.ok || data.error || data.success === false) {
+                throw new Error(data.error || `Server HTTP ${res.status}`);
+            }
 
             detectionHistory = data.detections || [];
             showDetails();
@@ -231,11 +250,15 @@ if (startWebcamButton) {
     startWebcamButton.addEventListener("click", async () => {
         try {
             clearDetails();
-            stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+            stream = await navigator.mediaDevices.getUserMedia({ 
+                video: { width: { ideal: 640 }, height: { ideal: 480 } }, 
+                audio: false 
+            });
 
             webcam.srcObject = stream;
             await webcam.play();
 
+            // Match canvas overlay coordinates strictly to webcam element
             canvas.width = webcam.videoWidth;
             canvas.height = webcam.videoHeight;
 
@@ -256,48 +279,69 @@ if (startWebcamButton) {
 }
 
 async function detectWebcam() {
-    if (!stream || detecting) return;
+    if (!stream || detecting || !webcam.videoWidth) return;
     detecting = true;
 
     try {
+        // Downscaled 320x320 canvas to eliminate CPU payload overhead
         const tempCanvas = document.createElement("canvas");
-        tempCanvas.width = webcam.videoWidth;
-        tempCanvas.height = webcam.videoHeight;
+        tempCanvas.width = 320;
+        tempCanvas.height = 320;
         const tempCtx = tempCanvas.getContext("2d");
-        tempCtx.drawImage(webcam, 0, 0);
+        
+        // Downscale camera frame into temporary canvas
+        tempCtx.drawImage(webcam, 0, 0, 320, 320);
 
-        const frameDataUrl = tempCanvas.toDataURL("image/jpeg");
-        const blob = await new Promise(res => tempCanvas.toBlob(res, "image/jpeg", 0.7));
+        const blob = await new Promise(res => tempCanvas.toBlob(res, "image/jpeg", 0.5));
         
         const form = new FormData();
         form.append("image", blob, "webcam.jpg");
-        form.append("threshold", getConfidenceThreshold()); // Sending dynamic threshold
+        form.append("threshold", getConfidenceThreshold());
 
         const res = await fetch("/predict", { method: "POST", body: form });
-        const data = await res.json();
+        const rawText = await res.text();
+        
+        let data;
+        try {
+            data = JSON.parse(rawText);
+        } catch (jsonErr) {
+            console.warn("Webcam response non-JSON (cold start or worker timeout):", rawText.slice(0, 80));
+            return;
+        }
+
+        if (!res.ok || data.error) return;
 
         const detections = data.detections || [];
 
         if (detections.length > 0) {
-            // Sort detections by best confidence score first
             detections.sort((a, b) => b.confidence - a.confidence);
 
-            drawBoxes(detections);
+            // Rescale coordinates from 320x320 space back to actual webcam video resolution
+            const scaleX = webcam.videoWidth / 320;
+            const scaleY = webcam.videoHeight / 320;
+
+            const rescaledDetections = detections.map(d => {
+                if (!d.bbox) return d;
+                return {
+                    ...d,
+                    bbox: {
+                        x1: d.bbox.x1 * scaleX,
+                        y1: d.bbox.y1 * scaleY,
+                        x2: d.bbox.x2 * scaleX,
+                        y2: d.bbox.y2 * scaleY
+                    }
+                };
+            });
+
+            drawBoxes(rescaledDetections);
             detectionHistory = detections;
             showDetails();
 
-            // Auto-capture frame previews
-            previewImage.src = frameDataUrl;
-            previewImage.style.display = "block";
-            previewMessage.style.display = "none";
-
             if (data.annotated_image) {
                 resultImage.src = `data:image/jpeg;base64,${data.annotated_image}`;
-            } else {
-                resultImage.src = frameDataUrl;
+                resultImage.style.display = "block";
+                resultMessage.style.display = "none";
             }
-            resultImage.style.display = "block";
-            resultMessage.style.display = "none";
         } else {
             if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
         }
