@@ -35,17 +35,17 @@ def predict():
     try:
         req_confidence = float(request.form.get("threshold", DEFAULT_CONFIDENCE))
 
-        # Decode byte stream directly into OpenCV BGR matrix (bypasses PIL overhead completely)
+        # Decode byte stream directly into OpenCV BGR matrix
         file_bytes = np.frombuffer(request.files["image"].read(), np.uint8)
         image = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
 
         if image is None:
             return jsonify({"error": "Invalid or corrupted image file"}), 400
 
-        # Run ONNX model prediction at 320px for high-speed CPU performance
+        # Match the exact 416px input dimension expected by the ONNX model
         result = model.predict(
             image,
-            imgsz=320,
+            imgsz=416,
             conf=req_confidence,
             verbose=False,
             max_det=10,
@@ -89,7 +89,7 @@ def predict():
                 2,
             )
 
-        # Fast direct JPEG encoding in memory (Quality set to 50 for max network transfer speed)
+        # Encode to JPEG in memory
         _, buffer = cv2.imencode(".jpg", output, [int(cv2.IMWRITE_JPEG_QUALITY), 50])
         encoded = base64.b64encode(buffer).decode("utf-8")
 
