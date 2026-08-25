@@ -1,6 +1,8 @@
 flask
 flask-cors
-ultralytics
-opencv-python-headless
-pillow
 gunicorn
+opencv-python-headless
+numpy
+ultralytics
+onnx
+onnxruntime
