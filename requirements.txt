@@ -3,6 +3,4 @@ flask-cors
 gunicorn
 opencv-python-headless
 numpy
-ultralytics
-onnx
 onnxruntime
