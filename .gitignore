@@ -1,5 +1,18 @@
+# Environment & Virtual Environments
 venv/
+.env
+
+# Python Cache
 __pycache__/
 *.pyc
-.env
-runs/hazardous_detection/train*
+
+# Training Outputs & Experiments
+runs/
+
+# Datasets
+train/
+test/
+valid/
+dataset/
+*.zip
+*.tar.gz
