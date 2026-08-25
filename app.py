@@ -59,7 +59,7 @@ def predict():
     # Lightweight inference: reduced image size (imgsz=320) cuts RAM usage in half
     result = model.predict(
         image,
-        imgsz=320,
+        imgsz=256,
         conf=req_confidence,
         device="cpu",
         verbose=False,
@@ -109,7 +109,7 @@ def predict():
     output = Image.fromarray(output)
 
     buffer = io.BytesIO()
-    output.save(buffer, format="JPEG", quality=80)
+    output.save(buffer, format="JPEG", quality=60)
     encoded = base64.b64encode(buffer.getvalue()).decode("utf-8")
 
     # Clear variables manually from RAM
