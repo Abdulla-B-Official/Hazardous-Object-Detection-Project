@@ -42,9 +42,12 @@ def predict():
         if image is None:
             return jsonify({"error": "Invalid or corrupted image file"}), 400
 
-        # Match the exact 416px input dimension expected by the ONNX model
+        # Hard-resize frame directly to 416x416 to match strict ONNX tensor requirements
+        image_input = cv2.resize(image, (416, 416), interpolation=cv2.INTER_LINEAR)
+
+        # Run ONNX model prediction strictly at 416px
         result = model.predict(
-            image,
+            image_input,
             imgsz=416,
             conf=req_confidence,
             verbose=False,
@@ -68,7 +71,7 @@ def predict():
             })
 
         # Draw annotations directly onto BGR frame
-        output = image.copy()
+        output = image_input.copy()
         for d in detections:
             x1, y1, x2, y2 = (
                 d["bbox"]["x1"],
@@ -89,12 +92,12 @@ def predict():
                 2,
             )
 
-        # Encode to JPEG in memory
+        # Fast direct JPEG encoding in memory
         _, buffer = cv2.imencode(".jpg", output, [int(cv2.IMWRITE_JPEG_QUALITY), 50])
         encoded = base64.b64encode(buffer).decode("utf-8")
 
         # Free memory instantly
-        del image, output, buffer, file_bytes
+        del image, image_input, output, buffer, file_bytes
         gc.collect()
 
         return jsonify({
