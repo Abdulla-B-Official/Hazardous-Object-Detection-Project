@@ -283,14 +283,14 @@ async function detectWebcam() {
     detecting = true;
 
     try {
-        // Downscaled 320x320 canvas to eliminate CPU payload overhead
+        // Match exact input shape expected by ONNX model (416x416)
         const tempCanvas = document.createElement("canvas");
-        tempCanvas.width = 320;
-        tempCanvas.height = 320;
+        tempCanvas.width = 416;
+        tempCanvas.height = 416;
         const tempCtx = tempCanvas.getContext("2d");
         
-        // Downscale camera frame into temporary canvas
-        tempCtx.drawImage(webcam, 0, 0, 320, 320);
+        // Downscale camera frame into temporary 416x416 canvas
+        tempCtx.drawImage(webcam, 0, 0, 416, 416);
 
         const blob = await new Promise(res => tempCanvas.toBlob(res, "image/jpeg", 0.5));
         
@@ -316,9 +316,9 @@ async function detectWebcam() {
         if (detections.length > 0) {
             detections.sort((a, b) => b.confidence - a.confidence);
 
-            // Rescale coordinates from 320x320 space back to actual webcam video resolution
-            const scaleX = webcam.videoWidth / 320;
-            const scaleY = webcam.videoHeight / 320;
+            // Rescale coordinates from 416x416 space back to actual webcam video resolution
+            const scaleX = webcam.videoWidth / 416;
+            const scaleY = webcam.videoHeight / 416;
 
             const rescaledDetections = detections.map(d => {
                 if (!d.bbox) return d;
