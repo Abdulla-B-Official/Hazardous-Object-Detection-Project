@@ -5,31 +5,25 @@ import cv2
 from flask import Flask, jsonify, render_template, request
 from flask_cors import CORS
 import numpy as np
-import onnxruntime as ort
+from ultralytics import YOLO
 
 app = Flask(__name__)
 CORS(app)
 
-# Load lightweight ONNX Runtime session with strict memory management
-MODEL_PATH = "best.onnx" if os.path.exists("best.onnx") else "runs/hazardous_detection/weights/best.onnx"
+# Load PyTorch model weights directly from root or runs directory
+MODEL_PATH = "best.pt" if os.path.exists("best.pt") else "runs/hazardous_detection/weights/best.pt"
 
-opts = ort.SessionOptions()
-opts.enable_cpu_mem_arena = False  # Prevents memory hoarding
-opts.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
-opts.intra_op_num_threads = 2
-
-session = ort.InferenceSession(MODEL_PATH, opts, providers=["CPUExecutionProvider"])
-input_name = session.get_inputs()[0].name
-output_name = session.get_outputs()[0].name
+# Initialize PyTorch YOLO model
+model = YOLO(MODEL_PATH)
 
 DEFAULT_CONFIDENCE = 0.20
-# Corrected 2-class list matching your Roboflow project setup
+# Exact 2-class mapping: Index 0 = cylinder, Index 1 = ShockAbsorber
 CLASS_NAMES = ["cylinder", "ShockAbsorber"]
 
 
 @app.route("/health")
 def health():
-    return jsonify({"status": "running", "model_loaded": True})
+    return jsonify({"status": "running", "model_loaded": True, "engine": "PyTorch (best.pt)"})
 
 
 @app.route("/")
@@ -53,64 +47,26 @@ def predict():
 
         orig_h, orig_w = image.shape[:2]
 
-        # Pre-process image for ONNX model shape [1, 3, 640, 640] or [1, 3, 416, 416]
-        # Using 640x640 resolution matching your trained standard
-        input_size = 640
-        img_resized = cv2.resize(image, (input_size, input_size))
-        img_rgb = cv2.cvtColor(img_resized, cv2.COLOR_BGR2RGB)
-        input_tensor = img_rgb.astype(np.float32) / 255.0
-        input_tensor = np.transpose(input_tensor, (2, 0, 1))  # HWC -> CHW
-        input_tensor = np.expand_dims(input_tensor, axis=0)   # Add batch dimension
-
-        # Run direct ONNX inference
-        outputs = session.run([output_name], {input_name: input_tensor})[0]
-
-        # Process YOLO output tensor
-        preds = np.squeeze(outputs)
-        if preds.shape[0] < preds.shape[1]:
-            preds = preds.T  # Transpose to [num_boxes, 4 + num_classes]
-
-        boxes, confidences, class_ids = [], [], []
-        
-        # Scaling factors to map 640x640 predictions back to original image dimensions
-        scale_x = orig_w / float(input_size)
-        scale_y = orig_h / float(input_size)
-
-        for pred in preds:
-            scores = pred[4:]
-            class_id = int(np.argmax(scores))
-            confidence = float(scores[class_id])
-
-            if confidence >= req_confidence:
-                cx, cy, w, h = pred[0], pred[1], pred[2], pred[3]
-                
-                # Rescale center coordinates to original image size
-                x1 = int((cx - w / 2) * scale_x)
-                y1 = int((cy - h / 2) * scale_y)
-                box_w = int(w * scale_x)
-                box_h = int(h * scale_y)
-
-                boxes.append([x1, y1, box_w, box_h])
-                confidences.append(confidence)
-                class_ids.append(class_id)
-
-        # Apply Non-Maximum Suppression (NMS) to clear duplicate overlapping boxes
-        indices = cv2.dnn.NMSBoxes(boxes, confidences, req_confidence, 0.45)
+        # PyTorch YOLOv8 prediction engine
+        results = model.predict(
+            source=image,
+            conf=req_confidence,
+            iou=0.45,
+            imgsz=640,
+            verbose=False
+        )[0]
 
         detections = []
         output_img = image.copy()
 
-        if len(indices) > 0:
-            for i in indices.flatten():
-                box = boxes[i]
-                x, y, w, h = box[0], box[1], box[2], box[3]
-                
-                # Clip box coordinates within image bounds
-                x1, y1 = max(0, x), max(0, y)
-                x2, y2 = min(orig_w, x + w), min(orig_h, y + h)
-                
-                conf = confidences[i]
-                c_id = class_ids[i]
+        # Process detections
+        if len(results.boxes) > 0:
+            for box in results.boxes:
+                # Extract coordinates, confidence, and class ID directly from PyTorch output
+                x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
+                conf = float(box.conf[0])
+                c_id = int(box.cls[0])
+
                 name = CLASS_NAMES[c_id] if c_id < len(CLASS_NAMES) else f"Class_{c_id}"
 
                 detections.append({
@@ -119,10 +75,12 @@ def predict():
                     "bbox": {"x1": x1, "y1": y1, "x2": x2, "y2": y2}
                 })
 
-                # Draw bounding box and label
-                color = (0, 255, 0) if name == "cylinder" else (255, 165, 0)
+                # BGR Format: Green (0, 255, 0) for cylinder | True Orange (0, 165, 255) for ShockAbsorber
+                color = (0, 255, 0) if c_id == 0 else (0, 165, 255)
+
+                # Draw bounding box on canvas
                 cv2.rectangle(output_img, (x1, y1), (x2, y2), color, 2)
-                
+
                 label = f"{name} {conf * 100:.1f}%"
                 cv2.putText(
                     output_img,
@@ -134,11 +92,12 @@ def predict():
                     2
                 )
 
+        # Encode image response
         _, buffer = cv2.imencode(".jpg", output_img, [int(cv2.IMWRITE_JPEG_QUALITY), 75])
         encoded = base64.b64encode(buffer).decode("utf-8")
 
-        # Memory Cleanup
-        del image, img_resized, img_rgb, input_tensor, output_img, buffer, file_bytes
+        # Clean memory
+        del image, output_img, buffer, file_bytes
         gc.collect()
 
         return jsonify({
