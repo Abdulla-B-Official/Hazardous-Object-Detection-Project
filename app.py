@@ -16,7 +16,8 @@ MODEL_PATH = "best.pt" if os.path.exists("best.pt") else "runs/hazardous_detecti
 # Initialize PyTorch YOLO model
 model = YOLO(MODEL_PATH)
 
-DEFAULT_CONFIDENCE = 0.20
+# Raised default confidence to 0.40 to reduce ambient room noise
+DEFAULT_CONFIDENCE = 0.40
 # Exact 2-class mapping: Index 0 = cylinder, Index 1 = ShockAbsorber
 CLASS_NAMES = ["cylinder", "ShockAbsorber"]
 
@@ -46,6 +47,7 @@ def predict():
             return jsonify({"error": "Invalid or corrupted image file"}), 400
 
         orig_h, orig_w = image.shape[:2]
+        frame_area = orig_w * orig_h
 
         # PyTorch YOLOv8 prediction engine
         results = model.predict(
@@ -66,6 +68,13 @@ def predict():
                 x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
                 conf = float(box.conf[0])
                 c_id = int(box.cls[0])
+
+                # Calculate bounding box area
+                box_area = (x2 - x1) * (y2 - y1)
+
+                # Discard gigantic detections (e.g., full walls, background room, human body)
+                if box_area > (0.50 * frame_area):
+                    continue
 
                 name = CLASS_NAMES[c_id] if c_id < len(CLASS_NAMES) else f"Class_{c_id}"
 
