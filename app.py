@@ -50,8 +50,9 @@ def predict():
         orig_h, orig_w = image.shape[:2]
         frame_area = orig_w * orig_h
 
-        # Fast downscale to match model input resolution
-        image_resized = cv2.resize(image, (320, 320))
+        # Increased to 416x416 for higher precision and confidence scores
+        target_size = 416
+        image_resized = cv2.resize(image, (target_size, target_size))
 
         # 2. PyTorch inference pass without tracking gradients
         with torch.no_grad():
@@ -59,13 +60,13 @@ def predict():
                 source=image_resized,
                 conf=req_confidence,
                 iou=0.45,
-                imgsz=320,
+                imgsz=target_size,
                 verbose=False
             )[0]
 
         detections = []
-        scale_x = orig_w / 320.0
-        scale_y = orig_h / 320.0
+        scale_x = orig_w / float(target_size)
+        scale_y = orig_h / float(target_size)
 
         if len(results.boxes) > 0:
             for box in results.boxes:
@@ -115,7 +116,7 @@ def predict():
                     2
                 )
 
-            _, buffer = cv2.imencode(".jpg", output_img, [int(cv2.IMWRITE_JPEG_QUALITY), 60])
+            _, buffer = cv2.imencode(".jpg", output_img, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
             encoded = base64.b64encode(buffer).decode("utf-8")  # type: ignore
             del output_img, buffer
 

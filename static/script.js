@@ -30,8 +30,7 @@ let detecting = false;
 let isPredicting = false; // Prevents parallel health check collisions
 let detectionHistory = [];
 
-// Lowered polling interval for faster client-side rendering
-const INTERVAL = 300;
+const INTERVAL = 400; // Balanced interval for 416px resolution
 
 
 // =========================================================
@@ -50,10 +49,10 @@ function getConfidenceThreshold() {
 
 
 // =========================================================
-// IMAGE COMPRESSOR HELPER (PREVENTS 502 TIMEOUTS)
+// IMAGE COMPRESSOR HELPER
 // =========================================================
 
-function compressImage(fileOrCanvas, maxWidth = 320, quality = 0.6) {
+function compressImage(fileOrCanvas, maxWidth = 416, quality = 0.75) {
     return new Promise((resolve) => {
         const img = new Image();
         img.src = typeof fileOrCanvas === "string" ? fileOrCanvas : URL.createObjectURL(fileOrCanvas);
@@ -84,7 +83,7 @@ function compressImage(fileOrCanvas, maxWidth = 320, quality = 0.6) {
 // =========================================================
 
 async function checkSystemHealth() {
-    if (isPredicting) return; // Pause health check during active model inference
+    if (isPredicting) return;
 
     const pill = $("apiStatusPill");
     const pillText = $("apiStatusText");
@@ -151,7 +150,6 @@ function showDetails() {
         return;
     }
 
-    // Green (#4ade80) for ShockAbsorber (Index 0), Orange (#f97316) for cylinder (Index 1)
     detectionsBox.innerHTML = detectionHistory.map((d, i) => `
         <div class="detection-item">
             <strong>Detection ${i + 1}</strong><br>
@@ -201,13 +199,12 @@ if (detectButton) {
         isPredicting = true;
 
         try {
-            // Downscale to 320px for quick file processing
-            const compressedBlob = await compressImage(file, 320, 0.6);
+            const compressedBlob = await compressImage(file, 416, 0.8);
 
             const form = new FormData();
             form.append("image", compressedBlob, "upload.jpg");
             form.append("threshold", getConfidenceThreshold());
-            form.append("is_webcam", "false"); // Ensures server returns annotated base64 image for uploads
+            form.append("is_webcam", "false");
 
             const res = await fetch("/predict", { method: "POST", body: form });
             const rawText = await res.text();
@@ -226,7 +223,6 @@ if (detectButton) {
             detectionHistory = data.detections || [];
             showDetails();
 
-            // Display annotated image returned from Flask server
             if (data.annotated_image) {
                 resultImage.src = `data:image/jpeg;base64,${data.annotated_image}`;
                 resultImage.style.display = "block";
@@ -290,20 +286,20 @@ async function detectWebcam() {
     isPredicting = true;
 
     try {
-        // Downscale frame to 256x256 before uploading to backend
+        // Increased frame capture resolution to 416x416 for maximum model confidence
         const tempCanvas = document.createElement("canvas");
-        tempCanvas.width = 256;
-        tempCanvas.height = 256;
+        tempCanvas.width = 416;
+        tempCanvas.height = 416;
         const tempCtx = tempCanvas.getContext("2d");
         
-        tempCtx.drawImage(webcam, 0, 0, 256, 256);
+        tempCtx.drawImage(webcam, 0, 0, 416, 416);
 
-        const blob = await new Promise(res => tempCanvas.toBlob(res, "image/jpeg", 0.35));
+        const blob = await new Promise(res => tempCanvas.toBlob(res, "image/jpeg", 0.70));
         
         const form = new FormData();
         form.append("image", blob, "webcam.jpg");
         form.append("threshold", getConfidenceThreshold());
-        form.append("is_webcam", "true"); // Tells server to bypass heavy base64 encoding
+        form.append("is_webcam", "true");
 
         const res = await fetch("/predict", { method: "POST", body: form });
         const rawText = await res.text();
@@ -322,9 +318,8 @@ async function detectWebcam() {
         if (detections.length > 0) {
             detections.sort((a, b) => b.confidence - a.confidence);
 
-            // Rescale coordinates back to display canvas resolution
-            const scaleX = webcam.videoWidth / 256;
-            const scaleY = webcam.videoHeight / 256;
+            const scaleX = webcam.videoWidth / 416;
+            const scaleY = webcam.videoHeight / 416;
 
             const rescaledDetections = detections.map(d => {
                 if (!d.bbox) return d;
@@ -362,7 +357,6 @@ function drawBoxes(detections) {
         if (!b) return;
         const label = `${d.class_name || d.label} ${(d.confidence * 100).toFixed(1)}%`;
         
-        // Green for ShockAbsorber (Index 0), Orange for cylinder (Index 1)
         const color = (d.class_name === 'ShockAbsorber' || d.c_id === 0) ? "#4ade80" : "#f97316";
 
         ctx.strokeStyle = color;
