@@ -30,8 +30,8 @@ let detecting = false;
 let isPredicting = false; // Prevents parallel health check collisions
 let detectionHistory = [];
 
-// Throttled interval for cloud CPU stability
-const INTERVAL = 800;
+// Lowered polling interval for faster client-side rendering
+const INTERVAL = 300;
 
 
 // =========================================================
@@ -53,7 +53,7 @@ function getConfidenceThreshold() {
 // IMAGE COMPRESSOR HELPER (PREVENTS 502 TIMEOUTS)
 // =========================================================
 
-function compressImage(fileOrCanvas, maxWidth = 416, quality = 0.7) {
+function compressImage(fileOrCanvas, maxWidth = 320, quality = 0.6) {
     return new Promise((resolve) => {
         const img = new Image();
         img.src = typeof fileOrCanvas === "string" ? fileOrCanvas : URL.createObjectURL(fileOrCanvas);
@@ -155,7 +155,7 @@ function showDetails() {
     detectionsBox.innerHTML = detectionHistory.map((d, i) => `
         <div class="detection-item">
             <strong>Detection ${i + 1}</strong><br>
-            Class: <span style="color: ${d.class_name === 'ShockAbsorber' ? '#4ade80' : '#f97316'}; font-weight: bold;">${d.class_name || d.label || 'Hazard'}</span><br>
+            Class: <span style="color: ${ (d.class_name === 'ShockAbsorber' || d.c_id === 0) ? '#4ade80' : '#f97316' }; font-weight: bold;">${d.class_name || d.label || 'Hazard'}</span><br>
             Confidence: ${(d.confidence * 100).toFixed(2)}%
         </div>
     `).join("");
@@ -201,12 +201,13 @@ if (detectButton) {
         isPredicting = true;
 
         try {
-            // Compress uploaded image down to 416px width to prevent 502 timeouts
-            const compressedBlob = await compressImage(file, 416, 0.7);
+            // Downscale to 320px for quick file processing
+            const compressedBlob = await compressImage(file, 320, 0.6);
 
             const form = new FormData();
             form.append("image", compressedBlob, "upload.jpg");
             form.append("threshold", getConfidenceThreshold());
+            form.append("is_webcam", "false"); // Ensures server returns annotated base64 image for uploads
 
             const res = await fetch("/predict", { method: "POST", body: form });
             const rawText = await res.text();
@@ -289,18 +290,20 @@ async function detectWebcam() {
     isPredicting = true;
 
     try {
+        // Downscale frame to 256x256 before uploading to backend
         const tempCanvas = document.createElement("canvas");
-        tempCanvas.width = 416;
-        tempCanvas.height = 416;
+        tempCanvas.width = 256;
+        tempCanvas.height = 256;
         const tempCtx = tempCanvas.getContext("2d");
         
-        tempCtx.drawImage(webcam, 0, 0, 416, 416);
+        tempCtx.drawImage(webcam, 0, 0, 256, 256);
 
-        const blob = await new Promise(res => tempCanvas.toBlob(res, "image/jpeg", 0.5));
+        const blob = await new Promise(res => tempCanvas.toBlob(res, "image/jpeg", 0.35));
         
         const form = new FormData();
         form.append("image", blob, "webcam.jpg");
         form.append("threshold", getConfidenceThreshold());
+        form.append("is_webcam", "true"); // Tells server to bypass heavy base64 encoding
 
         const res = await fetch("/predict", { method: "POST", body: form });
         const rawText = await res.text();
@@ -319,8 +322,9 @@ async function detectWebcam() {
         if (detections.length > 0) {
             detections.sort((a, b) => b.confidence - a.confidence);
 
-            const scaleX = webcam.videoWidth / 416;
-            const scaleY = webcam.videoHeight / 416;
+            // Rescale coordinates back to display canvas resolution
+            const scaleX = webcam.videoWidth / 256;
+            const scaleY = webcam.videoHeight / 256;
 
             const rescaledDetections = detections.map(d => {
                 if (!d.bbox) return d;
@@ -338,12 +342,6 @@ async function detectWebcam() {
             drawBoxes(rescaledDetections);
             detectionHistory = detections;
             showDetails();
-
-            if (data.annotated_image) {
-                resultImage.src = `data:image/jpeg;base64,${data.annotated_image}`;
-                resultImage.style.display = "block";
-                resultMessage.style.display = "none";
-            }
         } else {
             if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
         }
