@@ -3,4 +3,5 @@ flask-cors
 gunicorn
 opencv-python-headless
 numpy
-onnxruntime
+torch--extra-index-url https://download.pytorch.org/whl/cpu
+ultralytics
