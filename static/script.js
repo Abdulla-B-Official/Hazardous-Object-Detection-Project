@@ -151,10 +151,11 @@ function showDetails() {
         return;
     }
 
+    // Green (#4ade80) for ShockAbsorber (Index 0), Orange (#f97316) for cylinder (Index 1)
     detectionsBox.innerHTML = detectionHistory.map((d, i) => `
         <div class="detection-item">
             <strong>Detection ${i + 1}</strong><br>
-            Class: <span style="color: ${d.class_name === 'cylinder' ? '#4ade80' : '#f97316'}; font-weight: bold;">${d.class_name || d.label || 'Hazard'}</span><br>
+            Class: <span style="color: ${d.class_name === 'ShockAbsorber' ? '#4ade80' : '#f97316'}; font-weight: bold;">${d.class_name || d.label || 'Hazard'}</span><br>
             Confidence: ${(d.confidence * 100).toFixed(2)}%
         </div>
     `).join("");
@@ -363,8 +364,8 @@ function drawBoxes(detections) {
         if (!b) return;
         const label = `${d.class_name || d.label} ${(d.confidence * 100).toFixed(1)}%`;
         
-        // Green for cylinder, Orange for ShockAbsorber
-        const color = (d.class_name === 'cylinder' || d.c_id === 0) ? "#4ade80" : "#f97316";
+        // Green for ShockAbsorber (Index 0), Orange for cylinder (Index 1)
+        const color = (d.class_name === 'ShockAbsorber' || d.c_id === 0) ? "#4ade80" : "#f97316";
 
         ctx.strokeStyle = color;
         ctx.lineWidth = 3;

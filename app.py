@@ -15,7 +15,7 @@ MODEL_PATH = "best.pt" if os.path.exists("best.pt") else "runs/hazardous_detecti
 model = YOLO(MODEL_PATH)
 
 DEFAULT_CONFIDENCE = 0.40
-CLASS_NAMES = ["cylinder", "ShockAbsorber"]
+CLASS_NAMES = ["ShockAbsorber", "cylinder"]
 
 
 @app.route("/health")
