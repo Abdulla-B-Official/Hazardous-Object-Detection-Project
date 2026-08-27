@@ -4,7 +4,7 @@ FROM python:3.10-slim
 # Prevent Ultralytics from raising read-only directory warnings in Docker
 ENV YOLO_CONFIG_DIR=/tmp
 
-# Install system dependencies needed for OpenCV (libgl1 replaces deprecated libgl1-mesa-glx)
+# Install system dependencies needed for OpenCV
 RUN apt-get update && apt-get install -y \
     libgl1 \
     libglib2.0-0 \
@@ -12,16 +12,19 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
-# Copy requirements first for faster Docker caching
+# Copy requirements file first
 COPY requirements.txt .
 
-# Install PyTorch CPU first to avoid heavy GPU downloads, then rest of requirements
-RUN pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cpu
+# Install PyTorch CPU and remaining requirements with extra index URL in one command
+RUN pip install --no-cache-dir \
+    torch torchvision \
+    --extra-index-url https://download.pytorch.org/whl/cpu
+
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application files
+# Copy application code
 COPY . .
 
-# Expose port and run Gunicorn with a 120s timeout
+# Expose port and start Gunicorn worker
 EXPOSE 5000
 CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "1", "--threads", "2", "--timeout", "120", "app:app"]

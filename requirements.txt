@@ -2,7 +2,5 @@ flask
 flask-cors
 gunicorn
 opencv-python-headless
-numpy
-torch
-torchvision
 ultralytics
+numpy
