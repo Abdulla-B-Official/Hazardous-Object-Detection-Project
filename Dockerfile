@@ -1,21 +1,27 @@
+# Use lightweight base Python image
 FROM python:3.10-slim
 
-# Install system dependencies required by OpenCV & PyTorch
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libgl1 \
+# Prevent Ultralytics from raising read-only directory warnings in Docker
+ENV YOLO_CONFIG_DIR=/tmp
+
+# Install system dependencies needed for OpenCV
+RUN apt-get update && apt-get install -y \
+    libgl1-mesa-glx \
     libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Copy dependency specifications and install
+# Copy requirements first for faster Docker caching
 COPY requirements.txt .
+
+# Install PyTorch CPU first to avoid heavy GPU downloads, then rest of requirements
+RUN pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cpu
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy all project files
+# Copy application files
 COPY . .
 
+# Expose port and run Gunicorn with a 120s timeout to prevent 502 Bad Gateway errors
 EXPOSE 5000
-
-# Start Flask using Gunicorn (1 worker saves RAM on free host)
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "1", "--timeout", "120", "app:app"]
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "1", "--threads", "2", "--timeout", "120", "app:app"]
