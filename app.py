@@ -5,26 +5,22 @@ import cv2
 from flask import Flask, jsonify, render_template, request
 from flask_cors import CORS
 import numpy as np
+import torch
 from ultralytics import YOLO
 
 app = Flask(__name__)
 CORS(app)
 
-# Load PyTorch model weights directly from root or runs directory
 MODEL_PATH = "best.pt" if os.path.exists("best.pt") else "runs/hazardous_detection/weights/best.pt"
-
-# Initialize PyTorch YOLO model
 model = YOLO(MODEL_PATH)
 
-# Raised default confidence to 0.40 to reduce ambient room noise
 DEFAULT_CONFIDENCE = 0.40
-# Exact 2-class mapping: Index 0 = cylinder, Index 1 = ShockAbsorber
 CLASS_NAMES = ["cylinder", "ShockAbsorber"]
 
 
 @app.route("/health")
 def health():
-    return jsonify({"status": "running", "model_loaded": True, "engine": "PyTorch (best.pt)"})
+    return jsonify({"status": "running", "model_loaded": True})
 
 
 @app.route("/")
@@ -49,30 +45,28 @@ def predict():
         orig_h, orig_w = image.shape[:2]
         frame_area = orig_w * orig_h
 
-        # PyTorch YOLOv8 prediction engine
-        results = model.predict(
-            source=image,
-            conf=req_confidence,
-            iou=0.45,
-            imgsz=640,
-            verbose=False
-        )[0]
+        # Disable gradient computation to prevent RAM spikes and memory leaks
+        with torch.no_grad():
+            results = model.predict(
+                source=image,
+                conf=req_confidence,
+                iou=0.45,
+                imgsz=640,
+                verbose=False
+            )[0]
 
         detections = []
         output_img = image.copy()
 
-        # Process detections
         if len(results.boxes) > 0:
             for box in results.boxes:
-                # Extract coordinates, confidence, and class ID directly from PyTorch output
                 x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
                 conf = float(box.conf[0])
                 c_id = int(box.cls[0])
 
-                # Calculate bounding box area
                 box_area = (x2 - x1) * (y2 - y1)
 
-                # Discard gigantic detections (e.g., full walls, background room, human body)
+                # Filter out frame-filling false positives (walls, background)
                 if box_area > (0.50 * frame_area):
                     continue
 
@@ -84,12 +78,9 @@ def predict():
                     "bbox": {"x1": x1, "y1": y1, "x2": x2, "y2": y2}
                 })
 
-                # BGR Format: Green (0, 255, 0) for cylinder | True Orange (0, 165, 255) for ShockAbsorber
                 color = (0, 255, 0) if c_id == 0 else (0, 165, 255)
-
-                # Draw bounding box on canvas
                 cv2.rectangle(output_img, (x1, y1), (x2, y2), color, 2)
-
+                
                 label = f"{name} {conf * 100:.1f}%"
                 cv2.putText(
                     output_img,
@@ -101,12 +92,11 @@ def predict():
                     2
                 )
 
-        # Encode image response
-        _, buffer = cv2.imencode(".jpg", output_img, [int(cv2.IMWRITE_JPEG_QUALITY), 75])
+        _, buffer = cv2.imencode(".jpg", output_img, [int(cv2.IMWRITE_JPEG_QUALITY), 70])
         encoded = base64.b64encode(buffer).decode("utf-8")
 
-        # Clean memory
-        del image, output_img, buffer, file_bytes
+        # Explicit RAM cleanup
+        del image, output_img, buffer, file_bytes, results
         gc.collect()
 
         return jsonify({
