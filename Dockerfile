@@ -4,9 +4,9 @@ FROM python:3.10-slim
 # Prevent Ultralytics from raising read-only directory warnings in Docker
 ENV YOLO_CONFIG_DIR=/tmp
 
-# Install system dependencies needed for OpenCV
+# Install system dependencies needed for OpenCV (libgl1 replaces deprecated libgl1-mesa-glx)
 RUN apt-get update && apt-get install -y \
-    libgl1-mesa-glx \
+    libgl1 \
     libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
@@ -22,6 +22,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application files
 COPY . .
 
-# Expose port and run Gunicorn with a 120s timeout to prevent 502 Bad Gateway errors
+# Expose port and run Gunicorn with a 120s timeout
 EXPOSE 5000
 CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "1", "--threads", "2", "--timeout", "120", "app:app"]
