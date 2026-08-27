@@ -51,7 +51,7 @@ def predict():
                 source=image,
                 conf=req_confidence,
                 iou=0.45,
-                imgsz=640,
+                imgsz=320,
                 verbose=False
             )[0]
 

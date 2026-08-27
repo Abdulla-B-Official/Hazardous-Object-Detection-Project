@@ -27,9 +27,10 @@ const confidenceValue = $("confidenceValue");
 let stream = null;
 let timer = null;
 let detecting = false;
+let isPredicting = false; // Prevents parallel health check collisions
 let detectionHistory = [];
 
-// Throttled to 800ms interval to give free cloud CPU time to respond without queue lag
+// Throttled interval for cloud CPU stability
 const INTERVAL = 800;
 
 
@@ -44,7 +45,37 @@ if (confidenceSlider && confidenceValue) {
 }
 
 function getConfidenceThreshold() {
-    return confidenceSlider ? (parseFloat(confidenceSlider.value) / 100) : 0.20;
+    return confidenceSlider ? (parseFloat(confidenceSlider.value) / 100) : 0.40;
+}
+
+
+// =========================================================
+// IMAGE COMPRESSOR HELPER (PREVENTS 502 TIMEOUTS)
+// =========================================================
+
+function compressImage(fileOrCanvas, maxWidth = 416, quality = 0.7) {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.src = typeof fileOrCanvas === "string" ? fileOrCanvas : URL.createObjectURL(fileOrCanvas);
+        img.onload = () => {
+            const tempCanvas = document.createElement("canvas");
+            let width = img.width;
+            let height = img.height;
+
+            if (width > maxWidth) {
+                height = Math.round((height * maxWidth) / width);
+                width = maxWidth;
+            }
+
+            tempCanvas.width = width;
+            tempCanvas.height = height;
+
+            const tempCtx = tempCanvas.getContext("2d");
+            tempCtx.drawImage(img, 0, 0, width, height);
+
+            tempCanvas.toBlob((blob) => resolve(blob), "image/jpeg", quality);
+        };
+    });
 }
 
 
@@ -53,6 +84,8 @@ function getConfidenceThreshold() {
 // =========================================================
 
 async function checkSystemHealth() {
+    if (isPredicting) return; // Pause health check during active model inference
+
     const pill = $("apiStatusPill");
     const pillText = $("apiStatusText");
     const systemStatus = $("systemStatus");
@@ -114,14 +147,14 @@ function showDetails() {
     detectionSummary.textContent = `Objects Detected: ${detectionHistory.length}`;
 
     if (!detectionHistory.length) {
-        detectionsBox.innerHTML = '<div class="detection-item">No objects detected.</div>';
+        detectionsBox.innerHTML = '<div class="detection-item">No hazardous objects detected.</div>';
         return;
     }
 
     detectionsBox.innerHTML = detectionHistory.map((d, i) => `
         <div class="detection-item">
             <strong>Detection ${i + 1}</strong><br>
-            Class: ${d.class_name || d.label || 'Hazard'}<br>
+            Class: <span style="color: ${d.class_name === 'cylinder' ? '#4ade80' : '#f97316'}; font-weight: bold;">${d.class_name || d.label || 'Hazard'}</span><br>
             Confidence: ${(d.confidence * 100).toFixed(2)}%
         </div>
     `).join("");
@@ -164,22 +197,24 @@ if (detectButton) {
         clearDetails();
         detectButton.disabled = true;
         detectButton.textContent = "Detecting...";
+        isPredicting = true;
 
         try {
+            // Compress uploaded image down to 416px width to prevent 502 timeouts
+            const compressedBlob = await compressImage(file, 416, 0.7);
+
             const form = new FormData();
-            form.append("image", file);
+            form.append("image", compressedBlob, "upload.jpg");
             form.append("threshold", getConfidenceThreshold());
 
             const res = await fetch("/predict", { method: "POST", body: form });
-            
-            // Read as text first to avoid JSON.parse syntax crash on HTTP error pages
             const rawText = await res.text();
             let data;
 
             try {
                 data = JSON.parse(rawText);
             } catch (jsonErr) {
-                throw new Error(`Server Error (${res.status}): Server sent non-JSON response.`);
+                throw new Error(`Server Error (${res.status}): Non-JSON response received.`);
             }
 
             if (!res.ok || data.error || data.success === false) {
@@ -189,40 +224,9 @@ if (detectButton) {
             detectionHistory = data.detections || [];
             showDetails();
 
-            // Scenario A: Backend returned annotated base64 image
+            // Display annotated image returned from Flask server
             if (data.annotated_image) {
                 resultImage.src = `data:image/jpeg;base64,${data.annotated_image}`;
-                resultImage.style.display = "block";
-                resultMessage.style.display = "none";
-            } 
-            // Scenario B: Client-side canvas bounding box fallback
-            else if (detectionHistory.length > 0) {
-                const img = new Image();
-                img.src = previewImage.src;
-                await img.decode();
-
-                const offCanvas = document.createElement("canvas");
-                offCanvas.width = img.naturalWidth;
-                offCanvas.height = img.naturalHeight;
-                const offCtx = offCanvas.getContext("2d");
-
-                offCtx.drawImage(img, 0, 0);
-
-                detectionHistory.forEach(d => {
-                    const b = d.bbox;
-                    if (!b) return;
-                    const label = `${d.class_name || d.label} ${(d.confidence * 100).toFixed(1)}%`;
-
-                    offCtx.strokeStyle = "#4ade80";
-                    offCtx.lineWidth = Math.max(3, Math.round(img.naturalWidth / 250));
-                    offCtx.strokeRect(b.x1, b.y1, b.x2 - b.x1, b.y2 - b.y1);
-
-                    offCtx.fillStyle = "#4ade80";
-                    offCtx.font = `bold ${Math.max(16, Math.round(img.naturalWidth / 35))}px Inter, sans-serif`;
-                    offCtx.fillText(label, b.x1, Math.max(20, b.y1 - 7));
-                });
-
-                resultImage.src = offCanvas.toDataURL("image/jpeg");
                 resultImage.style.display = "block";
                 resultMessage.style.display = "none";
             } else {
@@ -235,6 +239,7 @@ if (detectButton) {
             resultMessage.textContent = `Detection failed: ${e.message}`;
             resultMessage.style.display = "block";
         } finally {
+            isPredicting = false;
             detectButton.disabled = false;
             detectButton.textContent = "Detect Objects";
         }
@@ -258,7 +263,6 @@ if (startWebcamButton) {
             webcam.srcObject = stream;
             await webcam.play();
 
-            // Match canvas overlay coordinates strictly to webcam element
             canvas.width = webcam.videoWidth;
             canvas.height = webcam.videoHeight;
 
@@ -281,15 +285,14 @@ if (startWebcamButton) {
 async function detectWebcam() {
     if (!stream || detecting || !webcam.videoWidth) return;
     detecting = true;
+    isPredicting = true;
 
     try {
-        // Match exact input shape expected by ONNX model (416x416)
         const tempCanvas = document.createElement("canvas");
         tempCanvas.width = 416;
         tempCanvas.height = 416;
         const tempCtx = tempCanvas.getContext("2d");
         
-        // Downscale camera frame into temporary 416x416 canvas
         tempCtx.drawImage(webcam, 0, 0, 416, 416);
 
         const blob = await new Promise(res => tempCanvas.toBlob(res, "image/jpeg", 0.5));
@@ -305,7 +308,6 @@ async function detectWebcam() {
         try {
             data = JSON.parse(rawText);
         } catch (jsonErr) {
-            console.warn("Webcam response non-JSON (cold start or worker timeout):", rawText.slice(0, 80));
             return;
         }
 
@@ -316,7 +318,6 @@ async function detectWebcam() {
         if (detections.length > 0) {
             detections.sort((a, b) => b.confidence - a.confidence);
 
-            // Rescale coordinates from 416x416 space back to actual webcam video resolution
             const scaleX = webcam.videoWidth / 416;
             const scaleY = webcam.videoHeight / 416;
 
@@ -349,6 +350,7 @@ async function detectWebcam() {
         console.error("Webcam processing error:", e);
     } finally {
         detecting = false;
+        isPredicting = false;
     }
 }
 
@@ -360,12 +362,15 @@ function drawBoxes(detections) {
         const b = d.bbox;
         if (!b) return;
         const label = `${d.class_name || d.label} ${(d.confidence * 100).toFixed(1)}%`;
+        
+        // Green for cylinder, Orange for ShockAbsorber
+        const color = (d.class_name === 'cylinder' || d.c_id === 0) ? "#4ade80" : "#f97316";
 
-        ctx.strokeStyle = "#4ade80";
+        ctx.strokeStyle = color;
         ctx.lineWidth = 3;
         ctx.strokeRect(b.x1, b.y1, b.x2 - b.x1, b.y2 - b.y1);
 
-        ctx.fillStyle = "#4ade80";
+        ctx.fillStyle = color;
         ctx.font = "bold 15px Inter, sans-serif";
         ctx.fillText(label, b.x1, Math.max(18, b.y1 - 7));
     });
