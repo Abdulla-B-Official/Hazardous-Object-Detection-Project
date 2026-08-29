@@ -1,6 +1,3 @@
-Here is a complete, beautifully formatted `README.md` for your **AI-Based Hazardous Waste Detection & Classification System**, designed to match the sleek, high-visibility style of your WeldVision reference:
-
-```markdown
 # ♻️ HazWaste Vision AI — Intelligent Waste Detection & Classification
 
 [![Live Demo](https://img.shields.io/badge/Render-Live%20Demo-46E3B7?style=for-the-badge&logo=render&logoColor=black)](https://hazardous-object-detection.onrender.com)
@@ -21,20 +18,20 @@ The application analyzes static images and live camera streams to detect, bound,
 
 ## Key Features
 
-* **Image Detection & Processing:** Upload single or batch images for instant object localization.
-* **Real-Time Camera Feed:** Integrated webcam support for continuous monitoring scenarios.
-* **YOLOv8 Deep Learning Engine:** Custom-trained **YOLOv8s** architecture optimized for real-time edge/web inference.
-* **Bounding Box Overlay:** Visual localization showing exact target position, class label, and confidence score.
-* **High-Precision Evaluation:** Trained and validated to achieve high mAP (Mean Average Precision) across target categories.
-* **REST API Endpoints:** Web service backend for sending raw frames and receiving structured JSON predictions.
-* **Industrial Deployment Architecture:** Built to serve as the baseline vision engine for industrial conveyor belt sorting systems.
-* **Web User Interface:** Clean, responsive UI for easy interaction and live detection rendering.
+* **Image Quality Inspection:** Upload hazardous waste images for single-frame or batch detection.
+* **Real-Time Camera Stream:** Live video feed integration for automated inspection.
+* **YOLOv8 Deep Learning Engine:** Custom-trained **YOLOv8s** architecture optimized for high accuracy and fast inference.
+* **Target Localization & Bounding Boxes:** Precise visual bounding box overlays with class labels and confidence scores.
+* **Performance Analytics & Metrics:** High precision and recall tracking across target hazardous waste categories.
+* **REST API & Backend Endpoints:** Flask web server providing endpoints for image prediction and status monitoring.
+* **Industrial Sorting Concept:** Designed as a foundational vision system for conveyor-belt waste inspection and automated sorting.
+* **Modern Interface:** User-friendly UI built with HTML, CSS, JavaScript, and Flask.
 
 ---
 
 ## Hazardous Waste Detection Classes
 
-The custom-trained model detects and categorizes key hazardous waste items:
+The custom-trained YOLO model identifies two key hazardous waste categories:
 
 | Class | Status | Risk Level | Description |
 | :--- | :---: | :---: | :--- |
@@ -43,9 +40,20 @@ The custom-trained model detects and categorizes key hazardous waste items:
 
 ---
 
-## Performance & Metrics
+## Dataset & Augmentation
 
-Evaluated on the 20% validation split using the optimal checkpoint (`best.pt`):
+* **Original Dataset:** ~205 raw images annotated in YOLO format.
+* **Augmentation Pipeline (Roboflow):** Dataset expanded to **~1,798 images** across 3 distinct augmentation sets to improve generalization:
+  * **Set 1:** 90° Rotations (Clockwise, Counter-Clockwise, Upside Down), Exposure ($\pm 14\%$), Pixel Noise (up to 1.98%).
+  * **Set 2:** 90° Rotations, Brightness adjustment ($\pm 22\%$).
+  * **Set 3:** 90° Rotations, Grayscale conversion (applied to 15% of images).
+* **Train/Validation Split:** 80% Training / 20% Validation split performed using Google Colab (Random Seed: 42).
+
+---
+
+## Model Training & Performance Metrics
+
+The model was trained in Google Colab using GPU acceleration with **AdamW**, **Cosine Learning Rate Scheduling**, and **150 Epochs**. Evaluated on the validation split using optimal weights (`best.pt`):
 
 | Metric | Score | Percentage |
 | :--- | :---: | :---: |
@@ -71,96 +79,21 @@ Evaluated on the 20% validation split using the optimal checkpoint (`best.pt`):
 
 ```text
 Hazardous_Waste_Project/
-├── app.py                  # Flask web server routes & prediction REST API
-├── requirements.txt        # Backend dependencies & libraries
-├── Procfile                # Render deployment execution commands
-├── runtime.txt             # Environment Python runtime specification
-├── data.yaml               # YOLOv8 class names & dataset paths config
+├── app.py                  # Flask server routes & REST API endpoints
+├── requirements.txt        # Python backend dependencies
+├── Procfile                # Render deployment execution rules
+├── runtime.txt             # Python runtime environment specification
+├── data.yaml               # YOLO class configuration file
 ├── models/
-│   └── best.pt             # Trained YOLOv8s weight checkpoint
+│   └── best.pt             # Trained YOLOv8s best model weights
 ├── static/
-│   ├── css/                # Custom styling stylesheet files
-│   ├── js/                 # Web interface logic & API communication
-│   └── uploads/            # Temporary storage for processed frames
+│   ├── css/                # User interface styles
+│   ├── js/                 # Web application & frontend script logic
+│   └── uploads/            # Temporary storage for upload processing
 ├── templates/
-│   └── index.html          # Main HTML web application page
+│   └── index.html          # Frontend interface dashboard HTML
 ├── notebooks/
-│   └── training_colab.ipynb# Model training, validation & export pipeline
+│   └── training_colab.ipynb# Model training, split, and validation notebook
 └── dataset/
-    ├── train/              # 80% Training split (images & YOLO labels)
-    └── val/                # 20% Validation split (images & YOLO labels)
-
-```
-
----
-
-## System Architecture
-
-```text
-  ┌──────────────────┐      ┌─────────────────────┐      ┌──────────────────┐
-  │   Input Source   │ ───► │ Image Preprocessing │ ───► │  YOLOv8s Model   │
-  │ (Image / Webcam) │      │ (Resize 640x640)    │      │ (Inference Core) │
-  └──────────────────┘      └─────────────────────┘      └────────┬─────────┘
-                                                                  │
-  ┌──────────────────┐      ┌─────────────────────┐               │
-  │   Web UI Client  │ ◄─── │      Flask API      │ ◄─────────────┘
-  │ (Annotated View) │      │ (/predict endpoint) │
-  └──────────────────┘      └─────────────────────┘
-
-```
-
-### Industrial Sorting Workflow
-
-```text
-[Industrial Camera] ──► [Conveyor Stream] ──► [YOLOv8 Inference] ──► [Hazard Classification] ──► [Automated Actuator / Sorting]
-
-```
-
----
-
-## Quick Start & Installation
-
-### 1. Clone the Repository
-
-```bash
-git clone [https://github.com/your-username/hazardous-waste-detection.git](https://github.com/your-username/hazardous-waste-detection.git)
-cd hazardous-waste-detection
-
-```
-
-### 2. Set Up Virtual Environment
-
-```bash
-python -m venv venv
-# On Windows:
-venv\Scripts\activate
-# On macOS/Linux:
-source venv/bin/activate
-
-```
-
-### 3. Install Dependencies
-
-```bash
-pip install -r requirements.txt
-
-```
-
-### 4. Run the Application
-
-```bash
-python app.py
-
-```
-
-Open your browser and navigate to `http://localhost:5000`.
-
----
-
-## License
-
-Distributed under the MIT License. See `LICENSE` for details.
-
-```
-
-```
+    ├── train/              # Training images and YOLO labels (80%)
+    └── val/                # Validation images and YOLO labels (20%)
