@@ -1,64 +1,51 @@
-# ♻️ AI-Based Hazardous Waste Detection & Classification System
+Here is a complete, beautifully formatted `README.md` for your **AI-Based Hazardous Waste Detection & Classification System**, designed to match the sleek, high-visibility style of your WeldVision reference:
 
-[![YOLOv8](https://img.shields.io/badge/Model-YOLOv8s-blue?logo=ultralytics)](https://docs.ultralytics.com/)
-[![PyTorch](https://img.shields.io/badge/Framework-PyTorch-EE4C2C?logo=pytorch)](https://pytorch.org/)
-[![Flask](https://img.shields.io/badge/Backend-Flask-000000?logo=flask)](https://flask.palletsprojects.com/)
-[![Deployment](https://img.shields.io/badge/Render-Live_App-46E3B7?logo=render)](https://hazardous-object-detection.onrender.com)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+```markdown
+# ♻️ HazWaste Vision AI — Intelligent Waste Detection & Classification
 
-An automated computer-vision system designed to detect and classify hazardous waste objects (such as pressurized cylinders and shock absorbers) from images and live camera feeds using **YOLOv8s**.
+[![Live Demo](https://img.shields.io/badge/Render-Live%20Demo-46E3B7?style=for-the-badge&logo=render&logoColor=black)](https://hazardous-object-detection.onrender.com)
+[![Python](https://img.shields.io/badge/Python-3.8+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
+[![YOLOv8](https://img.shields.io/badge/YOLOv8-Ultralytics-FF9900?style=for-the-badge)](https://docs.ultralytics.com/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white)](https://pytorch.org/)
+[![Flask](https://img.shields.io/badge/Flask-000000?style=for-the-badge&logo=flask&logoColor=white)](https://flask.palletsprojects.com/)
+[![OpenCV](https://img.shields.io/badge/OpenCV-5C3EE8?style=for-the-badge&logo=opencv&logoColor=white)](https://opencv.org/)
+[![Roboflow](https://img.shields.io/badge/Roboflow-Data_Prep-6706CE?style=for-the-badge&logo=roboflow&logoColor=white)](https://roboflow.com/)
 
-🌐 **Live Demo:** [hazardous-object-detection.onrender.com](https://hazardous-object-detection.onrender.com)
+An **AI-powered computer vision web application** engineered for automated hazardous waste identification and classification using a custom-trained **YOLOv8s object detection model**.
 
----
+The application analyzes static images and live camera streams to detect, bound, and classify hazardous items (such as gas cylinders and mechanical shock absorbers) in real time. It delivers visual bounding box overlays, confidence score breakdowns, processing latency metrics, and API status monitoring.
 
-## 📌 Problem Statement
-Hazardous waste items like gas cylinders and mechanical shock absorbers present significant safety and environmental risks if improperly identified or handled. Traditional inspection relies on manual checks, which are time-consuming, prone to human error, and difficult to scale in high-volume waste processing facilities.
-
-This project addresses the problem by providing a high-precision, real-time deep learning pipeline that automatically identifies, bounds, and classifies hazardous items to reduce manual labor and improve safety.
-
----
-
-## 🎯 Key Objectives
-* **Automated Detection:** Identify hazardous items accurately from static images or webcam streams.
-* **Target Classes:** Detect and distinguish between **Shock Absorbers** and **Cylinders**.
-* **Localization & Scoring:** Return normalized bounding box coordinates and model confidence scores for every detection.
-* **Production Ready:** Deploy an accessible web interface and REST API backend.
-* **Industrial Application:** Lay the technical foundation for conveyor-belt deployment and automated sorting.
+**Live Application:** [hazardous-object-detection.onrender.com](https://hazardous-object-detection.onrender.com)
 
 ---
 
-## 📊 Dataset & Augmentation
+## Key Features
 
-* **Original Dataset:** ~205 raw images manually annotated in YOLO format.
-* **Augmentation Pipeline (Roboflow):** Expanded the dataset to **~1,798 images** across 3 distinct augmentation sets to enhance generalization against noise, orientation, and lighting variations:
-  * **Set 1:** 90° Rotations, Exposure adjustment ($\pm 14\%$), Pixel Noise (up to 1.98%).
-  * **Set 2:** 90° Rotations, Brightness adjustment ($\pm 22\%$).
-  * **Set 3:** 90° Rotations, Grayscale conversion (15% probability).
-* **Train/Val Split:** 80/20 train-validation split executed in Google Colab (Random Seed: 42).
-
----
-
-## ⚙️ Model Training & Configurations
-
-The lightweight **YOLOv8s** (`yolov8s.pt`) model was chosen to maintain high inference speeds while preserving feature detection capacity.
-
-| Hyperparameter | Value |
-| :--- | :--- |
-| **Architecture** | YOLOv8s |
-| **Input Image Size** | 640 × 640 |
-| **Epochs** | 150 |
-| **Batch Size** | 16 |
-| **Optimizer** | AdamW |
-| **Initial Learning Rate ($lr_0$)** | 0.001 (Cosine Decay) |
-| **Warmup Epochs / Patience** | 5 / 30 |
-| **Mosaic / Mixup** | 1.0 / 0.1 |
+* **Image Detection & Processing:** Upload single or batch images for instant object localization.
+* **Real-Time Camera Feed:** Integrated webcam support for continuous monitoring scenarios.
+* **YOLOv8 Deep Learning Engine:** Custom-trained **YOLOv8s** architecture optimized for real-time edge/web inference.
+* **Bounding Box Overlay:** Visual localization showing exact target position, class label, and confidence score.
+* **High-Precision Evaluation:** Trained and validated to achieve high mAP (Mean Average Precision) across target categories.
+* **REST API Endpoints:** Web service backend for sending raw frames and receiving structured JSON predictions.
+* **Industrial Deployment Architecture:** Built to serve as the baseline vision engine for industrial conveyor belt sorting systems.
+* **Web User Interface:** Clean, responsive UI for easy interaction and live detection rendering.
 
 ---
 
-## 📈 Evaluation Metrics
+## Hazardous Waste Detection Classes
 
-Evaluated on the validation set using the best weight parameters (`best.pt`):
+The custom-trained model detects and categorizes key hazardous waste items:
+
+| Class | Status | Risk Level | Description |
+| :--- | :---: | :---: | :--- |
+| 🟡 **Shock Absorber** | Target | Warning | Pressurized mechanical component requiring controlled handling and disposal. |
+| 🔴 **Cylinder** | Target | Critical | High-pressure gas container posing potential explosive or chemical hazards. |
+
+---
+
+## Performance & Metrics
+
+Evaluated on the 20% validation split using the optimal checkpoint (`best.pt`):
 
 | Metric | Score | Percentage |
 | :--- | :---: | :---: |
@@ -70,8 +57,46 @@ Evaluated on the validation set using the best weight parameters (`best.pt`):
 
 ---
 
-## 🏗️ System Architecture
+## Tools & Technologies
 
+* **Computer Vision & AI:** YOLOv8 (Ultralytics), PyTorch, OpenCV, Python
+* **Data Processing & Augmentation:** Roboflow, Google Colab (GPU Acceleration)
+* **Backend Framework:** Flask REST API, Gunicorn
+* **Frontend Interface:** HTML5, CSS3, JavaScript
+* **Deployment & Hosting:** Render, Git/GitHub
+
+---
+
+## Project Structure
+
+```text
+Hazardous_Waste_Project/
+├── app.py                  # Flask web server routes & prediction REST API
+├── requirements.txt        # Backend dependencies & libraries
+├── Procfile                # Render deployment execution commands
+├── runtime.txt             # Environment Python runtime specification
+├── data.yaml               # YOLOv8 class names & dataset paths config
+├── models/
+│   └── best.pt             # Trained YOLOv8s weight checkpoint
+├── static/
+│   ├── css/                # Custom styling stylesheet files
+│   ├── js/                 # Web interface logic & API communication
+│   └── uploads/            # Temporary storage for processed frames
+├── templates/
+│   └── index.html          # Main HTML web application page
+├── notebooks/
+│   └── training_colab.ipynb# Model training, validation & export pipeline
+└── dataset/
+    ├── train/              # 80% Training split (images & YOLO labels)
+    └── val/                # 20% Validation split (images & YOLO labels)
+
+```
+
+---
+
+## System Architecture
+
+```text
   ┌──────────────────┐      ┌─────────────────────┐      ┌──────────────────┐
   │   Input Source   │ ───► │ Image Preprocessing │ ───► │  YOLOv8s Model   │
   │ (Image / Webcam) │      │ (Resize 640x640)    │      │ (Inference Core) │
@@ -81,3 +106,61 @@ Evaluated on the validation set using the best weight parameters (`best.pt`):
   │   Web UI Client  │ ◄─── │      Flask API      │ ◄─────────────┘
   │ (Annotated View) │      │ (/predict endpoint) │
   └──────────────────┘      └─────────────────────┘
+
+```
+
+### Industrial Sorting Workflow
+
+```text
+[Industrial Camera] ──► [Conveyor Stream] ──► [YOLOv8 Inference] ──► [Hazard Classification] ──► [Automated Actuator / Sorting]
+
+```
+
+---
+
+## Quick Start & Installation
+
+### 1. Clone the Repository
+
+```bash
+git clone [https://github.com/your-username/hazardous-waste-detection.git](https://github.com/your-username/hazardous-waste-detection.git)
+cd hazardous-waste-detection
+
+```
+
+### 2. Set Up Virtual Environment
+
+```bash
+python -m venv venv
+# On Windows:
+venv\Scripts\activate
+# On macOS/Linux:
+source venv/bin/activate
+
+```
+
+### 3. Install Dependencies
+
+```bash
+pip install -r requirements.txt
+
+```
+
+### 4. Run the Application
+
+```bash
+python app.py
+
+```
+
+Open your browser and navigate to `http://localhost:5000`.
+
+---
+
+## License
+
+Distributed under the MIT License. See `LICENSE` for details.
+
+```
+
+```
