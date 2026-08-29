@@ -1,76 +1,83 @@
-# Hazardous Object Detection & Identification Project
+# ♻️ AI-Based Hazardous Waste Detection & Classification System
 
-[![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
-[![JavaScript](https://img.shields.io/badge/JavaScript-ES6+-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black)](https://developer.mozilla.org/en-US/docs/Web/JavaScript)
-[![Flask](https://img.shields.io/badge/Flask-3.0+-000000?style=for-the-badge&logo=flask&logoColor=white)](https://flask.palletsprojects.com/)
-[![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white)](https://pytorch.org/)
-[![Ultralytics YOLOv8](https://img.shields.io/badge/YOLOv8-Small-00FFFF?style=for-the-badge&logo=ultralytics&logoColor=black)](https://docs.ultralytics.com/)
-[![OpenCV](https://img.shields.io/badge/OpenCV-5C3EE8?style=for-the-badge&logo=opencv&logoColor=white)](https://opencv.org/)
-[![Docker](https://img.shields.io/badge/Docker-Enabled-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
-[![Render](https://img.shields.io/badge/Render-Live_Demo-brightgreen?style=for-the-badge&logo=render)](https://render.com/)
+[![YOLOv8](https://img.shields.io/badge/Model-YOLOv8s-blue?logo=ultralytics)](https://docs.ultralytics.com/)
+[![PyTorch](https://img.shields.io/badge/Framework-PyTorch-EE4C2C?logo=pytorch)](https://pytorch.org/)
+[![Flask](https://img.shields.io/badge/Backend-Flask-000000?logo=flask)](https://flask.palletsprojects.com/)
+[![Deployment](https://img.shields.io/badge/Render-Live_App-46E3B7?logo=render)](https://hazardous-object-detection.onrender.com)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-A comprehensive collection of **Hazardous Object Detection Web-App concepts, AI-powered computer vision pipelines, full-stack implementations, and cloud deployment workflows** documenting my journey in building **production-ready, real-time object detection systems**.
+An automated computer-vision system designed to detect and classify hazardous waste objects (such as pressurized cylinders and shock absorbers) from images and live camera feeds using **YOLOv8s**.
 
-This repository serves as a structured blueprint covering key engineering concepts used to develop **memory-optimized, scalable, interactive, and AI-integrated computer vision applications**. The project focuses on real-world industrial safety scenarios by combining custom dataset training, intelligent inference optimization, web API architecture, containerization, and cloud deployment.
+🌐 **Live Demo:** [hazardous-object-detection.onrender.com](https://hazardous-object-detection.onrender.com)
 
 ---
 
-## Topics Covered
+## 📌 Problem Statement
+Hazardous waste items like gas cylinders and mechanical shock absorbers present significant safety and environmental risks if improperly identified or handled. Traditional inspection relies on manual checks, which are time-consuming, prone to human error, and difficult to scale in high-volume waste processing facilities.
 
-### Web Development & API Architecture
-* Responsive Web Interfaces & Dynamic File Upload Workflows
-* RESTful API Endpoint Architecture (`POST /predict`, `GET /health`)
-* Multi-part Payload Parsing & Image File Stream Handling
-* Base64 Image Encoding/Decoding & JSON Serialization
-* Cross-Origin Resource Sharing (CORS) & Flask Integration
-* Interactive Thresholding & Dynamic Client-Side Visualization
-
-### Computer Vision & AI Engineering
-* Custom Deep Learning Object Detection Pipelines (YOLOv8 Small)
-* Dataset Annotation, Stratified Splitting (80/15/5), & Class Balancing
-* Data Augmentation Strategies (Mosaic, Mixup, Rotations)
-* Inference Optimization for Low-Memory & CPU-Only Environments
-* Image Preprocessing (RGB/BGR Color Space Conversions, Resizing)
-* Post-Processing (Bounding Box Drawing, Class Labels, Dynamic Confidence Scores)
-
-### Backend Performance & Resource Optimization
-* Memory-Constrained Deep Learning Inference (<512MB RAM Limits)
-* Disable Autograd Calculations (`torch.set_grad_enabled(False)`)
-* Dynamic Memory Cleanup & Python Garbage Collection (`gc.collect()`)
-* Thread-Safe Model Loading & PyTorch CPU Execution
-* Single-Core Cloud CPU Throughput Optimization
-
-### Containerization, DevOps & Deployment
-* Docker Containerization & Multi-Stage Environment Isolation
-* WSGI Production Server Configuration (Gunicorn / Flask Engine)
-* Production Cloud Hosting & Continuous Integration via Render
-* Environment Configuration & Dependency Management (`requirements.txt`)
-* Version Control with Git, Remote Repository Linking, & GitHub Workflows
+This project addresses the problem by providing a high-precision, real-time deep learning pipeline that automatically identifies, bounds, and classifies hazardous items to reduce manual labor and improve safety.
 
 ---
 
-## Featured Real-World Projects
-
-* **Hazardous Object Detection System:** Production-ready computer vision web application to identify, localize, and bounding-box annotate industrial hazards (gas cylinders, shock absorbers, industrial waste) in real time.
-* **Low-Memory Inference Pipeline:** Containerized PyTorch CPU execution service engineered specifically to run custom YOLO models smoothly under cloud free-tier RAM caps.
-* **RESTful Detection Engine API:** Modular Flask microservice delivering structured JSON detection metadata alongside base64-encoded annotated image payloads.
-
----
-
-## Repository Goal
-
-The purpose of this repository is to strengthen end-to-end computer vision engineering skills by unifying **Artificial Intelligence, Deep Learning, Full-Stack Web Development, Docker Containerization, and Cloud Deployment** to deliver scalable, reliable, and real-time safety inspection systems.
+## 🎯 Key Objectives
+* **Automated Detection:** Identify hazardous items accurately from static images or webcam streams.
+* **Target Classes:** Detect and distinguish between **Shock Absorbers** and **Cylinders**.
+* **Localization & Scoring:** Return normalized bounding box coordinates and model confidence scores for every detection.
+* **Production Ready:** Deploy an accessible web interface and REST API backend.
+* **Industrial Application:** Lay the technical foundation for conveyor-belt deployment and automated sorting.
 
 ---
 
-## Tools & Technologies
+## 📊 Dataset & Augmentation
 
-* **Languages:** Python 3.10+, JavaScript (ES6+), HTML5, CSS3
-* **Backend Frameworks:** Flask, Flask-CORS, Gunicorn
-* **AI & Computer Vision:** PyTorch, Ultralytics YOLOv8, OpenCV (`opencv-python-headless`), Pillow, NumPy
-* **Environments & Dev Tools:** Google Colab (GPU Training), VS Code, Git, GitHub, Docker
-* **Deployment Platforms:** Render, Docker Engine
+* **Original Dataset:** ~205 raw images manually annotated in YOLO format.
+* **Augmentation Pipeline (Roboflow):** Expanded the dataset to **~1,798 images** across 3 distinct augmentation sets to enhance generalization against noise, orientation, and lighting variations:
+  * **Set 1:** 90° Rotations, Exposure adjustment ($\pm 14\%$), Pixel Noise (up to 1.98%).
+  * **Set 2:** 90° Rotations, Brightness adjustment ($\pm 22\%$).
+  * **Set 3:** 90° Rotations, Grayscale conversion (15% probability).
+* **Train/Val Split:** 80/20 train-validation split executed in Google Colab (Random Seed: 42).
 
 ---
 
-*This repository will continue to evolve as I explore advanced object detection architectures, real-time video stream processing, optimized model quantizations (ONNX/OpenVINO), edge AI deployment, and industrial safety automation.*
+## ⚙️ Model Training & Configurations
+
+The lightweight **YOLOv8s** (`yolov8s.pt`) model was chosen to maintain high inference speeds while preserving feature detection capacity.
+
+| Hyperparameter | Value |
+| :--- | :--- |
+| **Architecture** | YOLOv8s |
+| **Input Image Size** | 640 × 640 |
+| **Epochs** | 150 |
+| **Batch Size** | 16 |
+| **Optimizer** | AdamW |
+| **Initial Learning Rate ($lr_0$)** | 0.001 (Cosine Decay) |
+| **Warmup Epochs / Patience** | 5 / 30 |
+| **Mosaic / Mixup** | 1.0 / 0.1 |
+
+---
+
+## 📈 Evaluation Metrics
+
+Evaluated on the validation set using the best weight parameters (`best.pt`):
+
+| Metric | Score | Percentage |
+| :--- | :---: | :---: |
+| **Precision** | 0.9845 | **98.45%** |
+| **Recall** | 0.9713 | **97.13%** |
+| **F1-Score** | 0.9778 | **97.78%** |
+| **mAP@50** | 0.9917 | **99.17%** |
+| **mAP@50–95** | 0.9467 | **94.67%** |
+
+---
+
+## 🏗️ System Architecture
+
+  ┌──────────────────┐      ┌─────────────────────┐      ┌──────────────────┐
+  │   Input Source   │ ───► │ Image Preprocessing │ ───► │  YOLOv8s Model   │
+  │ (Image / Webcam) │      │ (Resize 640x640)    │      │ (Inference Core) │
+  └──────────────────┘      └─────────────────────┘      └────────┬─────────┘
+                                                                  │
+  ┌──────────────────┐      ┌─────────────────────┐               │
+  │   Web UI Client  │ ◄─── │      Flask API      │ ◄─────────────┘
+  │ (Annotated View) │      │ (/predict endpoint) │
+  └──────────────────┘      └─────────────────────┘
