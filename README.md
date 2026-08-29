@@ -8,10 +8,6 @@
 [![OpenCV](https://img.shields.io/badge/OpenCV-5C3EE8?style=for-the-badge&logo=opencv&logoColor=white)](https://opencv.org/)
 [![Roboflow](https://img.shields.io/badge/Roboflow-Data_Prep-6706CE?style=for-the-badge&logo=roboflow&logoColor=white)](https://roboflow.com/)
 
-**Live Application**
-
-### 🔗 [hazardous-object-detection.onrender.com](https://hazardous-object-detection.onrender.com)
-
 </p>
 
 <p align="center">
@@ -28,6 +24,9 @@
 </p>
 
 ---
+**Live Application**
+
+## 🔗 [hazardous-object-detection.onrender.com](https://hazardous-object-detection.onrender.com)
 
 ##  Overview
 
