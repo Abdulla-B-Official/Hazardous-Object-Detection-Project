@@ -24,7 +24,7 @@
 </p>
 
 ---
-**Live Application**
+##  Live Application
 
  🔗 [hazardous-object-detection.onrender.com](https://hazardous-object-detection.onrender.com)
 
