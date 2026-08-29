@@ -26,7 +26,7 @@
 ---
 **Live Application**
 
-## 🔗 [hazardous-object-detection.onrender.com](https://hazardous-object-detection.onrender.com)
+ 🔗 [hazardous-object-detection.onrender.com](https://hazardous-object-detection.onrender.com)
 
 ##  Overview
 
