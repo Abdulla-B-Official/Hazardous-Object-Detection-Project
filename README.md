@@ -11,15 +11,6 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Model-YOLOv8s-blue?style=for-the-badge" />
-  <img src="https://img.shields.io/badge/Classes-2-green?style=for-the-badge" />
-  <img src="https://img.shields.io/badge/mAP%4050-99.17%25-success?style=for-the-badge" />
-  <img src="https://img.shields.io/badge/Precision-98.45%25-brightgreen?style=for-the-badge" />
-  <img src="https://img.shields.io/badge/Recall-97.13%25-orange?style=for-the-badge" />
-  <img src="https://img.shields.io/badge/F1--Score-97.78%25-purple?style=for-the-badge" />
-</p>
-
-<p align="center">
   <b>Real-time computer vision system for detecting and classifying hazardous waste objects from images and live camera input.</b>
 </p>
 
@@ -27,6 +18,16 @@
 ##  Live Application
 
  🔗 [hazardous-object-detection.onrender.com](https://hazardous-object-detection.onrender.com)
+
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Model-YOLOv8s-blue?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/Classes-2-green?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/mAP%4050-99.17%25-success?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/Precision-98.45%25-brightgreen?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/Recall-97.13%25-orange?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/F1--Score-97.78%25-purple?style=for-the-badge" />
+</p>
 
 ##  Overview
 
