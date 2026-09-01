@@ -44,12 +44,6 @@ The trained model is integrated into a **Flask API** and deployed as a live web 
 
 ---
 
-##  Live Demo
-
-###  Try the Application
-
-** https://hazardous-object-detection.onrender.com**
-
 The web application provides:
 
 *  Image upload
